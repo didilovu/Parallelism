@@ -407,3 +407,171 @@ vim lab2.cpp
 pgc++ -Minfo=all -fast -acc lab2.cpp -o qwe
 ./qwe
 vim lab2.cpp
+pgc++ -Minfo=all -fast -acc lab2.cpp -o qwe 512 100
+./qwe
+./qwe 512 100
+pgc++ -Minfo=all -fast -acc lab2.cpp -o qwe
+./qwe 512 100
+vim lab2.cpp
+git kommit
+git commit
+ssh -keygen -t rsa -b 4096 -C "belka.ksyu@mail.ru"
+git init
+git config --global user.name "k.b"
+git config --global user.email "belka.ksyu@mail.ru"
+git add lab2.cpp
+git commit lab2.cpp -m "check"
+git remote add origin git@github.com:didilovu/test.git
+git push origin master
+ls
+git remote add origin git@github.com:didilovu/parall.git
+cd
+cd gitconfig
+cd git/
+cd .git/
+cd
+git init
+git add lab2.cpp
+git remote -v
+git remote add origin git@github.com:didilovu/parall.git
+git remote remove origin
+git remote -v
+git remote add origin git@github.com:didilovu/parall.git
+git remote -v
+git push origin master
+gir remote add origin git@github.com:didilovu/test.git
+git remote add origin git@github.com:didilovu/test.git
+git remote -v
+git remote remove origin
+git remote -v
+git remote add origin git@github.com:didilovu/test.git
+git branch -M lab2.cpp
+git push -u origin lab2.cpp
+git add -A
+ls
+rm lab2.o
+rm test4
+cd ./test4
+ls
+rm Hello.cpp.pub
+rm Hello.cpp
+cd
+ls
+rm test4
+rm sin
+rm array
+rm cparracc
+rm CPU_float.txt
+ls
+rm gmon.out
+ls
+git add -A
+git commit -m "1 epoch"
+ls
+git push master
+git push origin master
+git add test6.c
+git remote add origin git@github.com:didilovu/test.git
+git remote -v
+git push origin master
+git remote add origin git@github.com:didilovu/test.git
+git push master
+git push -u origin test6.c
+git branch -M test6.c
+git push -u origin test6.c
+vim lab2.cpp
+git branch -M test6.c
+git add lab2.cpp
+git commit -m "2 epoch"
+git remote -v
+git branch -M lab2.cpp
+git remote -v
+git remote
+git remote add origin git@github.com:didilovu/test.git
+git add origin git@github.com:didilovu/test.git
+git add git@github.com:didilovu/test.git
+git remote -v
+git remove remote origin
+git remote remove origin
+git remote -v
+git remote add origin git@github.com:didilovu/test.git
+git branch -M test6.c
+git push -u origin test6.c
+git remote -v
+git push origin master
+git push master
+git remote -v
+git push origin master
+git push -u origin test6.c
+git remote remove origin
+git remote -v
+git remote add origin git@github.com:didilovu/test.git
+git push -u origin test6.c
+git branch -M test6.c
+git push -u origin test6.c
+git remote -v
+git init
+git add test6.c
+git commit -m "first lab"
+git remove -v
+git remote -v
+git remote add origin git@github.com:didilovu/test.git
+git push origin master
+git branch -b
+git checkout -b master
+git push origin master
+git remote remove origin
+git init
+git add test6.c
+git commit -m "1 lab"
+git add test6.c
+git remove -v
+git remote -v
+git remote add origin git@github.com:didilovu/parall.git
+git remove -v
+git remote -v
+git push origin master
+git pull
+git push origin master
+git add test6.c
+git push origin master
+git remote -v
+git commit -m "1 lab"
+ls
+git add test6.c
+git
+git pull
+git pull origin cant-pull
+git pull origin 
+git checkout master
+git pull
+git init
+git commit -m "2 lab parall"
+vim lab2.cpp
+git add lab2.cpp
+git commit a -m "2 lab parall"
+git commit lab2.cpp -m "2 lab parall"
+git init
+git remote add origin git@github.com:didilovu/parall.git
+git remote -v
+git push origin master
+git pull
+git remote add origin https://github.com/didilovu/paralleli.git
+git remote -v
+git remote add origin 
+git remove remove origin
+git remote remove origin
+git remote add origin https://github.com/didilovu/paralleli.git
+git branch -M lab2.cpp
+git push -u origin lab2.cpp
+git remote origin https://github.com/didilovu/paralleli.git
+git remote add origin https://github.com/didilovu/paralleli.git
+git remote -v
+git push -u origin lab2.cpp
+git remote add origin https://github.com/didilovu/paralleli.git
+git branch -M lab2.cpp
+git push -u origin lab2.cpp
+git remote set-url originhttps://github.com/didilovu/paralleli.git
+git remote set-url origin https://github.com/didilovu/paralleli.git
+git push -u origin lab2.cpp
+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
