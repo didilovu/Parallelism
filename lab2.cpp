@@ -67,7 +67,8 @@ int main(int arg, char** argv) {
              // #pragma acc update host(err) async(1)
              // #pragma acc wait(1)
          }
-         rep++;
+
+	 rep++;
          double** tmp = new double*[N];
 	 for (int i=0; i < N; i++)
 	{
