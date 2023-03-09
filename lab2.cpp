@@ -68,30 +68,30 @@ int main(int arg, char** argv) {
              // #pragma acc wait(1)
          }
          rep++;
-        // double** tmp = new double*[N];
-	// for (int i=0; i < N; i++)
-	//{
-	//   tmp[i] = new double[N];
-	//}
-	//for (int i=0;i < N; i++)
-	//	 for (int j = 0; j < N; j++)
-	//	 {
-	//		 tmp[i][j] = mas[i][j];
-	//	 }
-	 double** tmp = mas;
-	// for (int i=0; i < N; i++)
-	//	 for ( int j=0; j < N; j++)
-	//	 {
-	//		 mas[i][j] = anew[i][j];
-	//	 }
+         double** tmp = new double*[N];
+	 for (int i=0; i < N; i++)
+	{
+	   tmp[i] = new double[N];
+	}
+	for (int i=0;i < N; i++)
+		 for (int j = 0; j < N; j++)
+		 {
+			 tmp[i][j] = mas[i][j];
+		 }
+	// double** tmp = mas;
+	 for (int i=0; i < N; i++)
+		 for ( int j=0; j < N; j++)
+		 {
+			 mas[i][j] = anew[i][j];
+		 }
 
-         mas = anew;
-         // for (int i=0; i < N; i++)
-	//	for (int j=0; j < N; j++)
-	//	{
-	//		anew[i][j] = tmp[i][j];
-	//	}
-	 anew = tmp;
+        // mas = anew;
+          for (int i=0; i < N; i++)
+		for (int j=0; j < N; j++)
+		{
+			anew[i][j] = tmp[i][j];
+		}
+	// anew = tmp;
 	 std::cout<<rep<<std::endl;
        }
      std::cout << "Calculation time: " << 1.0 * (clock() - befca) / CLOCKS_PER_SEC << std::endl;
