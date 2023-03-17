@@ -65,16 +65,9 @@ int main(int arg, char** argv) {
                     err = fmax(err, fabs(mas[i][j] - anew[i][j]));
                 }
             }
-            for (int i = 1; i < N - 2; i++)
-            {
-                for (int j = 1; j < N - 2; j++)
-                {
-                    mas[i][j] = anew[i][j];
-                }
-            }
-            //double** c = mas;
-            //mas = anew;
-            //anew = c;
+            double** c = mas;
+            mas = anew;
+            anew = c;
             std::cout << rep << std::endl;
         }
         std::cout << "Calculation time: " << 1.0 * (clock() - befca) / CLOCKS_PER_SEC << std::endl;
