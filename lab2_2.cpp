@@ -6,16 +6,16 @@
 #define ACC 0.000001
 
 int main(int arg, char** argv) {
-    int N = std::atoi(argv[1]); //аргументы
+    int N = std::atoi(argv[1]); //arguments
     int ITER = std::atoi(argv[2]); 
-    double** mas = new double* [N]; //выделяем память
+    double** mas = new double* [N]; //memory
     double** anew = new double* [N];
     for (int i = 0; i < N; i++)
     {
         mas[i] = new double[N];
         anew[i] = new double[N];
     }
-    for (int i = 0; i < N; i++) //очищаем элементы матриц от мусора
+    for (int i = 0; i < N; i++) //zeros
     {
         for (int j = 0; j < N; j++)
         {
@@ -23,9 +23,9 @@ int main(int arg, char** argv) {
             anew[i][j] = 0;
         }
     }
-    int rep = 0; //объявление переменных
+    int rep = 0; //variables
     double err = 1.0;
-    mas[0][0] = 10; //углы матрицы
+    mas[0][0] = 10; //corners
     mas[N - 1][N - 1] = 30;
     mas[0][N - 1] = 20;
     mas[N - 1][0] = 20;
@@ -34,12 +34,12 @@ int main(int arg, char** argv) {
     anew[0][N - 1] = 20;
     anew[N - 1][0] = 20;
     clock_t befin = clock();
-    //копирование данных в GPU
+    //copying data to GPU
 #pragma acc enter data copyin (err, mas[0:N][0:N], anew[0:N][0:N]) 
     {
 #pragma acc data present (anew, mas)
 #pragma acc parallel loop gang vector
-        //заполнение границ матриц
+        //borders
         for (int i = 1; i < N - 1; i++)
         {
             mas[0][i] = mas[0][0] + (mas[0][N - 1] - mas[0][0]) / (N - i);
@@ -54,13 +54,12 @@ int main(int arg, char** argv) {
 #pragma acc wait(1)
         std::cout << "Initialization Time: " << 1.0 * (clock() - befin) / CLOCKS_PER_SEC << std::endl;
         clock_t befca = clock();
-        //заполнение матрицы и нахождение ошибки
+        //matrix and finding error
         while (rep < ITER && err >= ACC)
         {
             rep++;
             err = 0;
-#pragma acc update device (err) //обновления в переменной в GPU из CPU
-//заверяем компилятору, что данные есть в памяти
+#pragma acc update device (err) //updates in variable in GPU from CPU
 #pragma acc data present(anew, mas,err)
 #pragma acc parallel loop collapse(2) independent vector gang reduction(max:err)		  
             for (int i = 1; i < N - 2; i++)
@@ -72,9 +71,9 @@ int main(int arg, char** argv) {
                 }
             }
 
-#pragma acc update host(err) //обновления в переменной в CPU из GPU
+#pragma acc update host(err) //updates in variable in CPU from GPU
 #pragma acc wait(2) 
-            double** c = mas; //обновляем матрицы
+            double** c = mas; //updates matrix
             mas = anew;
             anew = c;
             //    std::cout << rep << std::endl;
@@ -82,7 +81,7 @@ int main(int arg, char** argv) {
         std::cout << "Calculation time: " << 1.0 * (clock() - befca) / CLOCKS_PER_SEC << std::endl;
     }
     std::cout << "Iteration: " << rep << " " << "Error: " << err << std::endl;
-    delete[] mas; //освобождение памяти
+    delete[] mas; //free
     delete[] anew;
     return 0;
 }
