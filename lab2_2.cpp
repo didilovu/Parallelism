@@ -38,7 +38,7 @@ int main(int arg, char** argv) {
 #pragma acc enter data copyin (err, mas[0:N][0:N], anew[0:N][0:N]) 
     {
 #pragma acc data present (anew, mas)
-#pragma acc parallel loop gang vector
+#pragma acc parallel loop gang vector async ()
         //borders
         for (int i = 1; i < N - 1; i++)
         {
@@ -51,7 +51,7 @@ int main(int arg, char** argv) {
             anew[i][N - 1] = mas[0][N - 1] + (mas[N - 1][N - 1] - mas[N - 1][0]) / (N - i);
             anew[N - 1][i] = mas[N - 1][0] + (mas[N - 1][N - 1] - mas[0][N - 1]) / (N - i);
         }
-#pragma acc wait(1)
+#pragma acc wait ()
         std::cout << "Initialization Time: " << 1.0 * (clock() - befin) / CLOCKS_PER_SEC << std::endl;
         clock_t befca = clock();
         //matrix and finding error
@@ -61,7 +61,7 @@ int main(int arg, char** argv) {
             err = 0;
 #pragma acc update device (err) //updates in variable in GPU from CPU
 #pragma acc data present(anew, mas,err)
-#pragma acc parallel loop collapse(2) independent vector gang reduction(max:err)		  
+#pragma acc parallel loop collapse(2) independent vector gang reduction(max:err) async()	  
             for (int i = 1; i < N - 2; i++)
             {
                 for (int j = 1; j < N - 2; j++)
@@ -72,7 +72,7 @@ int main(int arg, char** argv) {
             }
 
 #pragma acc update host(err) //updates in variable in CPU from GPU
-#pragma acc wait(2) 
+#pragma acc wait ()
             double** c = mas; //updates matrix
             mas = anew;
             anew = c;
