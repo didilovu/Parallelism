@@ -12,6 +12,23 @@ int main(int arg, char** argv) {
     double* mas = new double[N * N];
     double* anew = new double[N * N];
 
+    if (N == 0 || N < 0){
+	std::cout<<"N error"<<std::endl;
+	return EXIT_FAILURE;
+
+    }
+
+    if (ITER > 1000000 || ITER < 0)
+    {
+	std::cout<<"ITER error"<<std::endl;
+	return EXIT_FAILURE;
+    }
+
+    if (ACC < 0.0000001){
+	std::cout<<"ACC error"<<std::endl;
+	return EXIT_FAILURE;
+    }
+
     for (int i = 0; i < N * N; i++)
     {
         mas[i] = 0;
@@ -29,18 +46,19 @@ int main(int arg, char** argv) {
     anew[N * (N - 1)] = 20;
     anew[N * N - 1] = 20;
     clock_t befin = clock();
-    for (int i = 1; i < N - 1; i++)
+    for (int i = 1; i < N-1; i++)
+        mas[i] = mas[i-1] + (mas[N - 1] - mas[0]) / (N-1);
+
+    for (int i = 1; i < N-1; i++)
     {
-        mas[i] = mas[i - 1] + (mas[N - 1] - mas[0]) / N;
-        mas[N * (N - 1) + i] = mas[N * (N - 1) + i - 1] + (mas[N * N - 1] - mas[N * (N - 1)]) / N;
-        mas[N * i] = mas[(i - 1) * N] + (mas[N * N - 1] - mas[N * (N - 1)]) / N;
-        mas[N * i + (N - 1)] = mas[N * (i - 1) + (N - 1)] + (mas[N * N - 1] - mas[N - 1]) / N;
-        anew[i] = mas[i];
-        anew[N * (N - 1) + i] = mas[N * (N - 1) + i];
-        anew[N * i] = mas[N * i];
-        anew[N * i + (N - 1)] = mas[N * i + (N - 1)];
+        mas[N * (N - 1) + i] = mas[N * (N - 1) + i-1] + (mas[N * N-1] - mas[N * (N - 1)]) / (N-1);
+        mas[N*i] = mas[N*i-N] + (mas[N * N-1] - mas[N-1]) / (N-1);
+        mas[(N)*i+(N-1)] = mas[(N)*(i-1)+(N-1)] + (mas[N * N - 1] - mas[N - 1]) / (N-1);
     }
-#pragma acc enter data copyin(err, anew[0:N*N], mas[0:N*N])
+  
+	for (int i = 0; i < N*N; i++)
+		anew[i] = mas[i];
+
     {
         std::cout << "Initialization Time: " << 1.0 * (clock() - befin) / CLOCKS_PER_SEC << std::endl;
         clock_t befca = clock();
@@ -48,10 +66,6 @@ int main(int arg, char** argv) {
         {
             rep++;
             err = 0;
-#pragma acc update device(err)
-            //std::cout<<err<<std::endl; 
-#pragma acc data present(anew, mas,err)
-#pragma acc parallel loop independent collapse(2) async ()
             for (int i = 1; i < N - 2; i++)
             {
                 for (int j = 1; j < N - 2; j++)
@@ -60,10 +74,9 @@ int main(int arg, char** argv) {
                     err = fmax(err, fabs(mas[i * N + j] - anew[i * N + j]));
                 }
             }
-#pragma acc update host (err)
             if (rep % 100 == 0) {
-#pragma acc wait ()
-#pragma acc data present(anew, mas)
+                #pragma acc wait ()
+                #pragma acc data present(anew, mas)
             }
             double* c = mas;
             mas = anew;

@@ -10,6 +10,23 @@ int main(int arg, char** argv) {
     int N = std::atoi(argv[1]);
     int ITER = std::atoi(argv[2]);
     float ACC = std::atof(argv[3]);
+    
+    if (N == 0 || N < 0){
+	std::cout<<"N error"<<std::endl;
+	return EXIT_FAILURE;
+
+    }
+
+    if (ITER > 1000000 || ITER < 0)
+    {
+	std::cout<<"ITER error"<<std::endl;
+	return EXIT_FAILURE;
+    }
+
+    if (ACC < 0.0000001){
+	std::cout<<"ACC error"<<std::endl;
+	return EXIT_FAILURE;
+    }
 
 
     cublasHandle_t handle;
