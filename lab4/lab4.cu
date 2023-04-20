@@ -34,6 +34,23 @@ int main(int arg, char** argv) {
     int N = atoi(argv[1]);
     int ITER = atoi(argv[2]);
     float ACC = atof(argv[3]);
+    
+    if (N == 0 || N < 0){
+	std::cout<<"N error"<<std::endl;
+	return EXIT_FAILURE;
+    }
+
+    if (ITER > 1000000 || ITER < 0)
+    {
+	std::cout<<"ITER error"<<std::endl;
+	return EXIT_FAILURE;
+    }
+
+    if (ACC < 0.0000001){
+	std::cout<<"ACC error"<<std::endl;
+	return EXIT_FAILURE;
+    }
+
 
     double* mas = new double[N * N];
     double* anew = new double[N * N];
@@ -60,16 +77,17 @@ int main(int arg, char** argv) {
     clock_t befin = clock();
 
     for (int i = 1; i < N-1; i++)
+        mas[i] = mas[i-1] + (mas[N - 1] - mas[0]) / (N-1);
+
+    for (int i = 1; i < N-1; i++)
     {
-        mas[i] = mas[i - 1] + (mas[N - 1] - mas[0]) / N;
-        mas[N * (N - 1) + i] = mas[N * (N - 1) + i - 1] + (mas[N * N - 1] - mas[N * (N - 1)]) / N;
-        mas[N * i] = mas[(i - 1) * N] + (mas[N * N - 1] - mas[N * (N - 1)]) / N;
-        mas[N * i + (N - 1)] = mas[N * (i - 1) + (N - 1)] + (mas[N * N - 1] - mas[N - 1]) / N;
-        anew[i] = mas[i];
-        anew[N * (N - 1) + i] = mas[N * (N - 1) + i];
-        anew[N * i] = mas[N * i];
-        anew[N * i + (N - 1)] = mas[N * i + (N - 1)];
+        mas[N * (N - 1) + i] = mas[N * (N - 1) + i-1] + (mas[N * N-1] - mas[N * (N - 1)]) / (N-1);
+        mas[N*i] = mas[N*i-N] + (mas[N * N-1] - mas[N-1]) / (N-1);
+        mas[(N)*i+(N-1)] = mas[(N)*(i-1)+(N-1)] + (mas[N * N - 1] - mas[N - 1]) / (N-1);
     }
+  
+	for (int i = 0; i < N*N; i++)
+		anew[i] = mas[i];
 
         cout << "Initialization Time: " << 1.0 * (clock() - befin) / CLOCKS_PER_SEC << endl;
         clock_t befca = clock();
