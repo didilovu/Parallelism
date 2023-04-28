@@ -7,6 +7,7 @@
 #include <cublas_v2.h>
 
 int main(int arg, char** argv) {
+    std::cout<<"Enter the parameters: matrix size, count of iterations, minimum error value."<<std::endl;
     int N = std::atoi(argv[1]); //параметр, размер сетки
     int ITER = std::atoi(argv[2]); //параметр, макс количество итераций
     float ACC = std::atof(argv[3]); //параметр, мин значение ошибки
