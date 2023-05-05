@@ -11,8 +11,8 @@ using namespace std;
 __global__
 void countnewmatrix(double* mas, double* anew, size_t n) //считаем новую матрицу
 {
-    size_t i = blockIdx.x; //получаем индексы
-    size_t j = threadIdx.x;
+    size_t i = blockIdx.x; //получаем индексы, блок
+    size_t j = threadIdx.x; //нить
 
     if (!(blockIdx.x == 0 || threadIdx.x == 0))
         anew[i * n + j] = (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]) * 0.25; //считаем поэлементно
@@ -21,7 +21,7 @@ void countnewmatrix(double* mas, double* anew, size_t n) //считаем нов
 
 __global__
 void finderr(double* mas, double* anew, double* outMatrix) //обновляем значение ошибки
-{
+{				//разм-ть блока
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x; //получаем индекс элемента
 
     if (!(blockIdx.x == 0 || threadIdx.x == 0))
@@ -97,7 +97,7 @@ int main(int arg, char** argv) {
         cudaMalloc((void**)&deviceError, sizeof(double));
         cudaMalloc((void**)&errorMatrix, sizeof(double) * N * N);
 	
-	//
+	//выделние памяти для временного хранения CUB
  	cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N);
         cudaMalloc(&tempStorage, tempStorageSize);
 	
