@@ -14,17 +14,17 @@ void countnewmatrix(double* mas, double* anew, size_t n) //считаем нов
     size_t i = blockIdx.x; //получаем индексы, блок
     size_t j = threadIdx.x; //нить
 
-    if (!(blockIdx.x == 0 || threadIdx.x == 0))
+    if (!(blockIdx.x == 0 || threadIdx.x == 0) && (blockIdx.x >= 0 && blockIdx.x < n && threadIdx.x >= 0 && threadIdx.x < n))
         anew[i * n + j] = (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]) * 0.25; //считаем поэлементно
 
 }
 
 __global__
-void finderr(double* mas, double* anew, double* outMatrix) //обновляем значение ошибки
+void finderr(double* mas, double* anew, double* outMatrix, size_t n) //обновляем значение ошибки
 {				//разм-ть блока
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x; //получаем индекс элемента
 
-    if (!(blockIdx.x == 0 || threadIdx.x == 0))
+    if (!(blockIdx.x == 0 || threadIdx.x == 0) && (blockIdx.x >= 0 && blockIdx.x < size && threadIdx.x >= 0 && threadIdx.x < size))
         outMatrix[idx] = fabs(anew[idx] - mas[idx]); //берём по модулю
 
 }
@@ -110,7 +110,7 @@ int main(int arg, char** argv) {
 
             if (rep % 100 == 0)  //каждые 100 итераций обновляем значение ошибки
             {
-                finderr <<<, >>> (mas_dev, anew_dev, errorMatrix); //ситаю значение ошибки
+                finderr <<<, >>> (mas_dev, anew_dev, errorMatrix, N * N); //ситаю значение ошибки
                 cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N); //ищу макс значение ошибки
                 cudaMemcpy(&err, deviceError, sizeof(double), cudaMemcpyDeviceToHost); //обновляю значение ошибки на девайсе
             }
