@@ -85,8 +85,6 @@ int main(int arg, char** argv) {
         cout << "Initialization Time: " << 1.0 * (clock() - befin) / CLOCKS_PER_SEC << endl; //вывод потраченного на инициализацию времени
         clock_t befca = clock();//начало отсчёта для выполнения вычислений
 
-        cudaSetDevice(3); //выбираем девайс для работы
-
 	//создаю переменные и матрицы для работы на девайсе
         double* mas_dev, * anew_dev, * deviceError, * errorMatrix, * tempStorage = NULL;
         size_t tempStorageSize = 0;
@@ -135,5 +133,5 @@ int main(int arg, char** argv) {
     cudaFree(anew_dev);
     cudaFree(errorMatrix);
     cudaFree(tempStorage);
-    return EXIT_SUCCESS; //программа завершена успешно
+    return 0; //программа завершена успешно
 }
