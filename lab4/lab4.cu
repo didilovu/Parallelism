@@ -96,32 +96,24 @@ int main(int arg, char** argv) {
         cudaMalloc((void**)&errorMatrix, sizeof(double) * N * N);
 	
 	//выделние памяти для временного хранения CUB
- 	cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N);
+ 	cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N); //NULL
         cudaMalloc(&tempStorage, tempStorageSize);
 	
 	//копирую из хоста на девайс
         cudaMemcpy(mas_dev, mas, sizeof(double) * N * N, cudaMemcpyHostToDevice);
         cudaMemcpy(anew_dev, anew, sizeof(double) * N * N, cudaMemcpyHostToDevice);
 
-        
-
-
         while ((rep < ITER) && (err >= ACC)) //начинаем вычислять матрицу
         {
             rep++;  //итерация 1 пройдена
-            countnewmatrix <<<N - 1, N - 1>>> (mas_dev, anew_dev, N); //считаю новые значения матрицы
+            countnewmatrix <<<,>>> (anew_dev, mas_dev, N); //считаю новые значения матрицы
 
             if (rep % 100 == 0)  //каждые 100 итераций обновляем значение ошибки
             {
-                finderr <<<N - 1, N - 1>>> (mas_dev, anew_dev, errorMatrix); //ситаю значение ошибки
+                finderr <<<, >>> (mas_dev, anew_dev, errorMatrix); //ситаю значение ошибки
                 cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N); //ищу макс значение ошибки
                 cudaMemcpy(&err, deviceError, sizeof(double), cudaMemcpyDeviceToHost); //обновляю значение ошибки на девайсе
             }
-
-
-            double* c = mas_dev; //создаём переменную для дальнейшего свопа матриц
-            mas_dev = anew_dev;
-            anew_dev = c;
             cout << rep << "  " << err << endl;  //вывод итерации и значения ошибки 
         }
 
