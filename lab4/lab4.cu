@@ -28,18 +28,11 @@ void finderr(double* mas, double* anew, double* outMatrix, size_t n) //обно�
 
 }
 
-int find_threads(int size) {
-	if (size % 32 == 0)
-		return size / 1024;
-
-	return int(size / 1024) + 1;
-
-}
-
 int main(int arg, char** argv) {
     int N = atoi(argv[1]); //параметр, размер сетки
     int ITER = std::atoi(argv[2]); //параметр, макс количество итераций
     float ACC = std::atof(argv[3]); //параметр, мин значение ошибки
+
     //защита от пользователя
     if (N == 0 || N < 0){
 	std::cout<<"N error"<<std::endl;
@@ -68,7 +61,7 @@ int main(int arg, char** argv) {
     }
 
     int rep = 0; //инициализация переменной, отвечающей за отслеживания количества итераций 
-    double* err= 1.0; //инициализация переменной, отвечающей за отслеживания ошибки на определённой итерации
+    double err= 1.0; //инициализация переменной, отвечающей за отслеживания ошибки на определённой итерации
 
     mas[0] = 10; //левый верхний угол матрицы
     mas[N - 1] = 20; //правый верхний угол матрицы
@@ -102,10 +95,6 @@ int main(int arg, char** argv) {
         cudaMalloc((void**)&deviceError, sizeof(double));
         cudaMalloc((void**)&errorMatrix, sizeof(double) * N * N);
 	
-	//выделние памяти для временного хранения CUB
- 	cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N); //NULL
-        cudaMalloc(&tempStorage, tempStorageSize);
-	
 	//копирую из хоста на девайс
         cudaMemcpy(mas_dev, mas, sizeof(double) * N * N, cudaMemcpyHostToDevice);
         cudaMemcpy(anew_dev, anew, sizeof(double) * N * N, cudaMemcpyHostToDevice);
@@ -116,34 +105,45 @@ int main(int arg, char** argv) {
 	cudaStreamCreate(&memoryStream);
 	cudaGraph_t graph;
 	cudaGraphExec_t instance;
-	int t = 1024;
-	int b = find_threads(N);
+
+
+	//выделние памяти для временного хранения CUB
+ 	cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N, stream); //NULL
+        cudaMalloc(&tempStorage, tempStorageSize);
+
+	//вычисление наиболее подходящего размер блока
+	int blockS, minGridSize;
+        int maxSize = 1024;
+        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockS, countnewmatrix, 0, maxSize);
+        dim3 blockSize = dim3(32, 32);;
+        dim3 gridSize = dim3((N+blockSize .x-1)/blockSize .x,(N+blockSize .y-1)/blockSize .y);
+
+
 	
-        while ((rep < ITER) && (err >= ACC)) //начинаем вычислять матрицу
+        while ((rep < ITER) && (err > ACC)) //начинаем вычислять матрицу
         {
-      	    if (!graphCreated) {
-			cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+      	    	if (!graphCreated) {
+			cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal); //захват графов на потоке в режиме 0
 			for (size_t i = 0; i < 50; i++) {
-				countnewmatrix <<<b, t, 0, stream >>> (mas_dev, anew_dev, N);
-				countnewmatrix <<<b, t, 0, stream >>> (anew_dev, mas_dev, N);
+				countnewmatrix <<<gridSize, blockSize, 0, stream >>> (mas_dev, anew_dev, N);
+				countnewmatrix <<<gridSize, blockSize, 0, stream >>> (anew_dev, mas_dev, N);
 			}
-
-			finderr <<<b, t, 0, stream >>> (mas_dev, anew_dev, errorMatrix, N);
-
-			cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N, stream);
-
-
-			cudaStreamEndCapture(stream, &graph);
-			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+			cudaStreamEndCapture(stream, &graph);//заканчивает захват, возвр охваченный граф
+			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0); //Creates an executable graph from a graph.
 			graphCreated = true;
 
 		}
 		else {
-			cudaGraphLaunch(instance, stream);
-			cudaMemcpyAsync(err, deviceError, sizeof(double), cudaMemcpyDeviceToHost, stream);
-			cudaStreamSynchronize(stream);
+			cudaGraphLaunch(instance, stream); //загружает выполняемый граф в поток
+            		cudaStreamSynchronize(stream);
+            		cudaDeviceSynchronize();
+
+           		finderr<<<gridSize, blockSize, 0, stream >>> (mas_dev, anew_dev, errorMatrix, N);
+			cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N*N, stream);
+			cudaMemcpy(&err, deviceError, sizeof(double), cudaMemcpyDeviceToHost);
+
 			rep += 100;
-	    }
+	    	}
             cout << rep << "  " << err << endl;  //вывод итерации и значения ошибки 
         }
 
