@@ -14,7 +14,7 @@ void countnewmatrix(double* mas, double* anew, size_t n) //считаем нов
     size_t i = blockIdx.x; //получаем индексы, блок
     size_t j = threadIdx.x; //нить
 
-    if (!(blockIdx.x == 0 || threadIdx.x == 0) && (blockIdx.x >= 0 && blockIdx.x < n && threadIdx.x >= 0 && threadIdx.x < n))
+    if (!(blockIdx.x == 0 || threadIdx.x == 0) && (i * n + j<= n*n))
         anew[i * n + j] = (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]) * 0.25; //считаем поэлементно
 
 }
@@ -23,9 +23,16 @@ __global__
 void finderr(double* mas, double* anew, double* outMatrix, size_t n) //обновляем значение ошибки
 {				//разм-ть блока
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x; //получаем индекс элемента
-
-    if (!(blockIdx.x == 0 || threadIdx.x == 0) && (blockIdx.x >= 0 && blockIdx.x < size && threadIdx.x >= 0 && threadIdx.x < size))
+    if (!(blockIdx.x == 0 || threadIdx.x == 0) && (idx <= n * n))
         outMatrix[idx] = fabs(anew[idx] - mas[idx]); //берём по модулю
+
+}
+
+int find_threads(int size) {
+	if (size % 32 == 0)
+		return size / 1024;
+
+	return int(size / 1024) + 1;
 
 }
 
@@ -61,7 +68,7 @@ int main(int arg, char** argv) {
     }
 
     int rep = 0; //инициализация переменной, отвечающей за отслеживания количества итераций 
-    double err = 1.0; //инициализация переменной, отвечающей за отслеживания ошибки на определённой итерации
+    double* err= 1.0; //инициализация переменной, отвечающей за отслеживания ошибки на определённой итерации
 
     mas[0] = 10; //левый верхний угол матрицы
     mas[N - 1] = 20; //правый верхний угол матрицы
@@ -103,17 +110,40 @@ int main(int arg, char** argv) {
         cudaMemcpy(mas_dev, mas, sizeof(double) * N * N, cudaMemcpyHostToDevice);
         cudaMemcpy(anew_dev, anew, sizeof(double) * N * N, cudaMemcpyHostToDevice);
 
+	bool graphCreated = false;
+	cudaStream_t stream, memoryStream;
+	cudaStreamCreate(&stream);
+	cudaStreamCreate(&memoryStream);
+	cudaGraph_t graph;
+	cudaGraphExec_t instance;
+	int t = 1024;
+	int b = find_threads(N);
+	
         while ((rep < ITER) && (err >= ACC)) //начинаем вычислять матрицу
         {
-            rep++;  //итерация 1 пройдена
-            countnewmatrix <<<,>>> (anew_dev, mas_dev, N); //считаю новые значения матрицы
+      	    if (!graphCreated) {
+			cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+			for (size_t i = 0; i < 50; i++) {
+				countnewmatrix <<<b, t, 0, stream >>> (mas_dev, anew_dev, N);
+				countnewmatrix <<<b, t, 0, stream >>> (anew_dev, mas_dev, N);
+			}
 
-            if (rep % 100 == 0)  //каждые 100 итераций обновляем значение ошибки
-            {
-                finderr <<<, >>> (mas_dev, anew_dev, errorMatrix, N * N); //ситаю значение ошибки
-                cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N); //ищу макс значение ошибки
-                cudaMemcpy(&err, deviceError, sizeof(double), cudaMemcpyDeviceToHost); //обновляю значение ошибки на девайсе
-            }
+			finderr <<<b, t, 0, stream >>> (mas_dev, anew_dev, errorMatrix, N);
+
+			cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * N, stream);
+
+
+			cudaStreamEndCapture(stream, &graph);
+			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+			graphCreated = true;
+
+		}
+		else {
+			cudaGraphLaunch(instance, stream);
+			cudaMemcpyAsync(err, deviceError, sizeof(double), cudaMemcpyDeviceToHost, stream);
+			cudaStreamSynchronize(stream);
+			rep += 100;
+	    }
             cout << rep << "  " << err << endl;  //вывод итерации и значения ошибки 
         }
 
