@@ -115,7 +115,7 @@ int main(int arg, char** argv) {
 	int blockS, minGridSize;
         int maxSize = 1024;
         cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockS, countnewmatrix, 0, maxSize);
-        dim3 blockSize = dim3(32, 32);;
+        dim3 blockSize = dim3(32, 32); //сведенья об устр-ве. 1024 макс. 1.кол-во потоков, 2.кол-во блоков.
         dim3 gridSize = dim3((N+blockSize .x-1)/blockSize .x,(N+blockSize .y-1)/blockSize .y);
 
 
@@ -135,8 +135,6 @@ int main(int arg, char** argv) {
 		}
 		else {
 			cudaGraphLaunch(instance, stream); //загружает выполняемый граф в поток
-            		cudaStreamSynchronize(stream);
-            		cudaDeviceSynchronize();
 
            		finderr<<<gridSize, blockSize, 0, stream >>> (mas_dev, anew_dev, errorMatrix, N);
 			cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N*N, stream);
