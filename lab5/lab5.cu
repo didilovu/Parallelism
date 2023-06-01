@@ -34,14 +34,13 @@ __global__ void calculationMatrix(double* anew, const double* mas, size_t n, siz
 
     if (i > 0 && i < groupSize - 1 && j > 0 && j < n - 1) //промежуток подсчета исключая границы
     {
-        anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] +
-            mas[(i + 1) * n + j] + mas[i * n + j + 1]);
+        anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]);//среднее значение
     }
 }
 
 
 // Функция, подсчитывающая разницу матриц
-__global__ void getErrorMatrix(double* mas, double* anew, double* outputMatrix, size_t n, size_t sizePerGpu)
+__global__ void getErrorMatrix(double* mas, double* anew, double* outmas, size_t n, size_t sizePerGpu)
 {
     unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
@@ -50,7 +49,7 @@ __global__ void getErrorMatrix(double* mas, double* anew, double* outputMatrix, 
 
     if (!(j == 0 || i == 0 || j == n - 1 || i == sizePerGpu - 1))
     {
-        outputMatrix[idx] = std::abs(anew[idx] - mas[idx]);
+        outmas[idx] = std::abs(anew[idx] - mas[idx]);
     }
 }
 int main(int argc, char** argv) {
@@ -194,12 +193,9 @@ int main(int argc, char** argv) {
         calculationMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
         if (iter % 100 == 0) {
-            getErrorMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, errorMatrix,
-                N, sizeOfAreaForOneProcess);
-
+            getErrorMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, errorMatrix, N, sizeOfAreaForOneProcess); //операция вычисления разницы матриц
             cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, sizeOfAllocatedMemory, matrixCalculationStream); //находим максимальное число
 
-            // Находим максимальную ошибку среди всех и передаём её всем процессам
             MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
             cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);//память на каждый процесс
         }
@@ -207,8 +203,8 @@ int main(int argc, char** argv) {
 
         if (rank != 0) //верхние границы не с кем обменивать :(
         {
-            MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0,
-                d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		//отправить и получить запрос  
+            MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0, d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
 
         // Обмен с нижней границей
