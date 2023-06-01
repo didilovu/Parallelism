@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
 
     // выделение памяти на хосте 
     cudaMallocHost(&mas, sizeof(double) * totalSize);
-    cudaMallocHost(&anew, sizeof(double) * totalSize);
+    cudaMallocHost(&anew, sizeof(double) * totalSize); почему не маллок
 
     std::memset(mas, 0, N * N * sizeof(double));//нулями заполняем
 
@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
 
     //вычисление размеров сетки и кол-во потоков 
     unsigned int threads_x = (N < 1024) ? N : 1024;// кол-во потоков, видеокарта больше 1024 не позволяет (св-во видеокарты) 
+	почему не 77/16
     unsigned int blocks_y = sizeOfAreaForOneProcess; // кол-во блоков 
     unsigned int blocks_x = N / threads_x;
 
@@ -185,7 +186,7 @@ int main(int argc, char** argv) {
         calculateBoundaries <<<N, 1, 0, stream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess); //кол-во блоков и потоков
 
         cudaStreamSynchronize(stream);//ждёт завершения всех операций в потоке
-
+почему нельзя поменять !i
         // Расчет матрицы
         calculationMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
@@ -203,6 +204,7 @@ int main(int argc, char** argv) {
         {
 		//отправить и получить запрос  
             MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0, d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		почему не отдельно + массив на 4 процессах
 		//адрес отправки, колво эл-в отправки, тип, процесс, тег, адрес получения, колво эл-в получения, тип, процесс, тог, коммуникатор, объеект состо-я
         }
 
