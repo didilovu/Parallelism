@@ -151,7 +151,6 @@ int main(int argc, char** argv) {
     size_t offset = (rank != 0) ? N : 0; //тернарный опрератор (если ранк не = 0, то Н)
 
     cudaMemcpy(d_mas, mas + (startYIdx * N) - offset, sizeof(double) * sizeOfAllocatedMemory, cudaMemcpyHostToDevice); //память на каждый процесс
-
     cudaMemcpy(d_anew, anew + (startYIdx * N) - offset, sizeof(double) * sizeOfAllocatedMemory, cudaMemcpyHostToDevice);
 
 
@@ -202,7 +201,7 @@ int main(int argc, char** argv) {
 
             // Находим максимальную ошибку среди всех и передаём её всем процессам
             MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
-            cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);
+            cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);//память на каждый процесс
         }
 
 
@@ -215,9 +214,10 @@ int main(int argc, char** argv) {
         // Обмен с нижней границей
         if (rank != sizeOfTheGroup - 1)
         {
+		//операция передачи и приёма
             MPI_Sendrecv(d_anew + (sizeOfAreaForOneProcess - 2) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, d_anew + (sizeOfAreaForOneProcess - 1) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
-        cudaStreamSynchronize(matrixCalculationStream);
+        cudaStreamSynchronize(matrixCalculationStream);//ждёт завершения всех операций в потоке
 
         //обмен указателям
         double* c = d_mas;
