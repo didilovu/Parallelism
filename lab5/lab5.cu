@@ -198,6 +198,7 @@ int main(int argc, char** argv) {
 
             MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
             cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);//память на каждый процесс
+	    std::cout<<error<<std::endl;
         }
 
 
