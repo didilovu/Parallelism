@@ -10,13 +10,13 @@
 
 #include <mpi.h> 
 
-//расчёт пограничных значений матрицы на месте "среза"
+//СЂР°СЃС‡С‘С‚ РїРѕРіСЂР°РЅРёС‡РЅС‹С… Р·РЅР°С‡РµРЅРёР№ РјР°С‚СЂРёС†С‹ РЅР° РјРµСЃС‚Рµ "СЃСЂРµР·Р°"
 __global__ void calculateBoundaries(double* mas, double* anew, size_t n, size_t sizePerGpu)
 {
     unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (j == 0 || j > n - 2) return;
+    if (j == 0 || j > n - 2) return;    //
 
     if (j < n)
     {
@@ -26,13 +26,13 @@ __global__ void calculateBoundaries(double* mas, double* anew, size_t n, size_t 
 }
 
 
-//расчёт внутренних значений матрицы 
+//СЂР°СЃС‡С‘С‚ РІРЅСѓС‚СЂРµРЅРЅРёС… Р·РЅР°С‡РµРЅРёР№ РјР°С‚СЂРёС†С‹ 
 __global__ void calculationMatrix(double* anew, const double* mas, size_t n, size_t groupSize)
 {
     unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (i > 0 && i < groupSize - 1 && j > 0 && j < n - 1) //промежуток подсчета исключая границы
+    if (i > 0 && i < groupSize - 1 && j > 0 && j < n - 1) //РїСЂРѕРјРµР¶СѓС‚РѕРє РїРѕРґСЃС‡РµС‚Р° РёСЃРєР»СЋС‡Р°СЏ РіСЂР°РЅРёС†С‹
     {
         anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] +
             mas[(i + 1) * n + j] + mas[i * n + j + 1]);
@@ -40,26 +40,27 @@ __global__ void calculationMatrix(double* anew, const double* mas, size_t n, siz
 }
 
 
-// Функция, подсчитывающая разницу матриц
+// Р¤СѓРЅРєС†РёСЏ, РїРѕРґСЃС‡РёС‚С‹РІР°СЋС‰Р°СЏ СЂР°Р·РЅРёС†Сѓ РјР°С‚СЂРёС†
 __global__ void getErrorMatrix(double* mas, double* anew, double* outputMatrix, size_t n, size_t sizePerGpu)
 {
-	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
-        unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
 
-	size_t idx = i * n + j;
-	if(!(j == 0 || i == 0 || j == n - 1 || i == sizePerGpu - 1))
-	{
-		outputMatrix[idx] = std::abs(anew[idx] - mas[idx]);
-	}
+    size_t idx = i * n + j;
+
+    if (!(j == 0 || i == 0 || j == n - 1 || i == sizePerGpu - 1))
+    {
+        outputMatrix[idx] = std::abs(anew[idx] - mas[idx]);
+    }
 }
 int main(int argc, char** argv) {
 
     double* mas, * anew, * d_mas, * d_anew, * deviceError, * errorMatrix, * tempStorage = NULL;
-    int rank, sizeOfTheGroup; //номер текущего процесса, кол-во всех возможных процессов
+    int rank, sizeOfTheGroup; //РЅРѕРјРµСЂ С‚РµРєСѓС‰РµРіРѕ РїСЂРѕС†РµСЃСЃР°, РєРѕР»-РІРѕ РІСЃРµС… РІРѕР·РјРѕР¶РЅС‹С… РїСЂРѕС†РµСЃСЃРѕРІ
 
-    MPI_Init(&argc, &argv); //кол-во процессов и 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //инициализация
-    MPI_Comm_size(MPI_COMM_WORLD, &sizeOfTheGroup);
+    MPI_Init(&argc, &argv); //РєРѕР»-РІРѕ РїСЂРѕС†РµСЃСЃРѕРІ Рё 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
+    MPI_Comm_size(MPI_COMM_WORLD, &sizeOfTheGroup); 
 
     int numOfDevices = 0;
     cudaGetDeviceCount(&numOfDevices);
@@ -69,14 +70,14 @@ int main(int argc, char** argv) {
         std::exit(-1);
     }
 
-    cudaSetDevice(rank);//устанавливает
+    cudaSetDevice(rank);//СѓСЃС‚Р°РЅР°РІР»РёРІР°РµС‚
 
-    int N = atoi(argv[1]); //параметр, размер сетки SIZE
-    int ITER = std::atoi(argv[2]); //параметр, макс количество итераций iter max
-    float ACC = std::atof(argv[3]); //параметр, мин значение ошибки
+    int N = atoi(argv[1]); //РїР°СЂР°РјРµС‚СЂ, СЂР°Р·РјРµСЂ СЃРµС‚РєРё SIZE
+    int ITER = std::atoi(argv[2]); //РїР°СЂР°РјРµС‚СЂ, РјР°РєСЃ РєРѕР»РёС‡РµСЃС‚РІРѕ РёС‚РµСЂР°С†РёР№ iter max
+    float ACC = std::atof(argv[3]); //РїР°СЂР°РјРµС‚СЂ, РјРёРЅ Р·РЅР°С‡РµРЅРёРµ РѕС€РёР±РєРё
     int totalSize = N * N;
 
-    //защита от пользователя
+    //Р·Р°С‰РёС‚Р° РѕС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
     if (N == 0 || N < 0) {
         std::cout << "N error" << std::endl;
         return EXIT_FAILURE;
@@ -93,49 +94,45 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    //часть SIZE для каждого процесса
+    //С‡Р°СЃС‚СЊ SIZE РґР»СЏ РєР°Р¶РґРѕРіРѕ РїСЂРѕС†РµСЃСЃР°
     size_t sizeOfAreaForOneProcess = N / sizeOfTheGroup;
 
-    //начало части 
+    //РЅР°С‡Р°Р»Рѕ С‡Р°СЃС‚Рё 
     size_t startYIdx = sizeOfAreaForOneProcess * rank;
 
-    // выделение памяти на хосте 
+    // РІС‹РґРµР»РµРЅРёРµ РїР°РјСЏС‚Рё РЅР° С…РѕСЃС‚Рµ 
     cudaMallocHost(&mas, sizeof(double) * totalSize);
     cudaMallocHost(&anew, sizeof(double) * totalSize);
 
-    std::memset(mas, 0, N * N * sizeof(double));//нулями заполняем
+    std::memset(mas, 0, N * N * sizeof(double));//РЅСѓР»СЏРјРё Р·Р°РїРѕР»РЅСЏРµРј
 
+    //СЃРѕР·РґР°РЅРёРµ РјР°СЃСЃРёРІРѕРІ РЅР° С…РѕСЃС‚Рµ 
 
-    //создание массивов на хосте 
+    mas[0] = 10; //Р»РµРІС‹Р№ РІРµСЂС…РЅРёР№ СѓРіРѕР» РјР°С‚СЂРёС†С‹
+    mas[N - 1] = 20; //РїСЂР°РІС‹Р№ РІРµСЂС…РЅРёР№ СѓРіРѕР» РјР°С‚СЂРёС†С‹
+    mas[N * (N - 1)] = 20; //РЅРёР¶РЅРёР№ Р»РµРІС‹Р№ СѓРіРѕР» РјР°С‚СЂРёС†С‹
+    mas[N * N - 1] = 30; //РЅРёР¶РЅРёР№ РїСЂР°РІС‹Р№ СѓРіРѕР» РјР°С‚СЂРёС†С‹
 
-    mas[0] = 10; //левый верхний угол матрицы
-    mas[N - 1] = 20; //правый верхний угол матрицы
-    mas[N * (N - 1)] = 20; //нижний левый угол матрицы
-    mas[N * N - 1] = 30; //нижний правый угол матрицы
-
-    clock_t befin = clock(); //начнаю отсчёт времени инициализации 
-    for (int i = 1; i < N - 1; i++) //запоняю верхнюю границу матрицы
+    clock_t befin = clock(); //РЅР°С‡РЅР°СЋ РѕС‚СЃС‡С‘С‚ РІСЂРµРјРµРЅРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё 
+    for (int i = 1; i < N - 1; i++) //Р·Р°РїРѕРЅСЏСЋ РІРµСЂС…РЅСЋСЋ РіСЂР°РЅРёС†Сѓ РјР°С‚СЂРёС†С‹
         mas[i] = mas[i - 1] + (mas[N - 1] - mas[0]) / (N - 1);
 
-    for (int i = 1; i < N - 1; i++) //заполняю левую, правую и нижнуюю границы матрицы
+    for (int i = 1; i < N - 1; i++) //Р·Р°РїРѕР»РЅСЏСЋ Р»РµРІСѓСЋ, РїСЂР°РІСѓСЋ Рё РЅРёР¶РЅСѓСЋСЋ РіСЂР°РЅРёС†С‹ РјР°С‚СЂРёС†С‹
     {
         mas[N * (N - 1) + i] = mas[N * (N - 1) + i - 1] + (mas[N * N - 1] - mas[N * (N - 1)]) / (N - 1);
         mas[N * i] = mas[N * i - N] + (mas[N * N - 1] - mas[N - 1]) / (N - 1);
         mas[(N)*i + (N - 1)] = mas[(N) * (i - 1) + (N - 1)] + (mas[N * N - 1] - mas[N - 1]) / (N - 1);
     }
 
-    for (int i = 0; i < N * N; i++) //копирую
+    for (int i = 0; i < N * N; i++) //РєРѕРїРёСЂСѓСЋ
         anew[i] = mas[i];
 
-    std::memcpy(anew, mas, totalSize * sizeof(double));//
+    std::memcpy(anew, mas, totalSize * sizeof(double));//РєРѕРїРёСЂСѓРµС‚ СЃРѕРґРµСЂР¶РёРјРѕРµ РѕРґРЅРѕР№ РѕР±Р»Р°СЃС‚Рё РїР°РјСЏС‚Рё РІ РґСЂСѓРіСѓСЋ
 
-    //double* deviceMatrixAPtr, *d_anew, *deviceError, *errorMatrix, *tempStorage = NULL;
-
-
-      // Расчитываем, сколько памяти требуется процессу
+      // Р Р°СЃС‡РёС‚С‹РІР°РµРј, СЃРєРѕР»СЊРєРѕ РїР°РјСЏС‚Рё С‚СЂРµР±СѓРµС‚СЃСЏ РїСЂРѕС†РµСЃСЃСѓ
     if (rank != 0 && rank != sizeOfTheGroup - 1)
     {
-        sizeOfAreaForOneProcess += 2; // 2 еденицы памяти на добавление границ
+        sizeOfAreaForOneProcess += 2; // 2 РµРґРµРЅРёС†С‹ РїР°РјСЏС‚Рё РЅР° РґРѕР±Р°РІР»РµРЅРёРµ РіСЂР°РЅРёС†
     }
     else
     {
@@ -144,100 +141,96 @@ int main(int argc, char** argv) {
 
     size_t sizeOfAllocatedMemory = N * sizeOfAreaForOneProcess;
 
-    //выделяем память на gpu 
+    //РІС‹РґРµР»СЏРµРј РїР°РјСЏС‚СЊ РЅР° gpu 
     cudaMalloc((void**)&d_mas, sizeOfAllocatedMemory * sizeof(double));
     cudaMalloc((void**)&d_anew, sizeOfAllocatedMemory * sizeof(double));
     cudaMalloc((void**)&errorMatrix, sizeOfAllocatedMemory * sizeof(double));
     cudaMalloc((void**)&deviceError, sizeof(double));
 
-    // Копируем часть заполненной матрицы в выделенную память, начиная с 1 строки
-    size_t offset = (rank != 0) ? N : 0; //тернарный опрератор (если ранк не = 0, то сайз)
+    // РљРѕРїРёСЂСѓРµРј С‡Р°СЃС‚СЊ Р·Р°РїРѕР»РЅРµРЅРЅРѕР№ РјР°С‚СЂРёС†С‹ РІ РІС‹РґРµР»РµРЅРЅСѓСЋ РїР°РјСЏС‚СЊ, РЅР°С‡РёРЅР°СЏ СЃ 1 СЃС‚СЂРѕРєРё
+    size_t offset = (rank != 0) ? N : 0; //С‚РµСЂРЅР°СЂРЅС‹Р№ РѕРїСЂРµСЂР°С‚РѕСЂ (РµСЃР»Рё СЂР°РЅРє РЅРµ = 0, С‚Рѕ Рќ)
 
-    cudaMemcpy(d_mas, mas + (startYIdx * N) - offset,
-        sizeof(double) * sizeOfAllocatedMemory, cudaMemcpyHostToDevice); //память на каждый процесс
+    cudaMemcpy(d_mas, mas + (startYIdx * N) - offset, sizeof(double) * sizeOfAllocatedMemory, cudaMemcpyHostToDevice); //РїР°РјСЏС‚СЊ РЅР° РєР°Р¶РґС‹Р№ РїСЂРѕС†РµСЃСЃ
 
-    cudaMemcpy(d_anew, anew + (startYIdx * N) - offset,
-        sizeof(double) * sizeOfAllocatedMemory, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_anew, anew + (startYIdx * N) - offset, sizeof(double) * sizeOfAllocatedMemory, cudaMemcpyHostToDevice);
 
 
-    // Здесь мы получаем размер временного буфера для редукции и выделяем память для этого буфера
+    // Р—РґРµСЃСЊ РјС‹ РїРѕР»СѓС‡Р°РµРј СЂР°Р·РјРµСЂ РІСЂРµРјРµРЅРЅРѕРіРѕ Р±СѓС„РµСЂР° РґР»СЏ СЂРµРґСѓРєС†РёРё Рё РІС‹РґРµР»СЏРµРј РїР°РјСЏС‚СЊ РґР»СЏ СЌС‚РѕРіРѕ Р±СѓС„РµСЂР°
     size_t tempStorageSize = 0;
 
-    cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * sizeOfAreaForOneProcess);
+    cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, N * sizeOfAreaForOneProcess); //РІС‹РґРµР»СЏРµРј РїР°РјСЏС‚СЊ
 
     cudaMalloc((void**)&tempStorage, tempStorageSize);
 
     int iter = 0;
     double* error;
-    cudaMallocHost(&error, sizeof(double));//память на хосте
+    cudaMallocHost(&error, sizeof(double));//РїР°РјСЏС‚СЊ РЅР° С…РѕСЃС‚Рµ
     *error = 1.0;
 
 
-    //вычисление размеров сетки и кол-во потоков 
-    unsigned int threads_x = (N < 1024) ? N : 1024;// кол-во потоков, видеокарта боль 1024 не позволяет (св-во видеокарты) 
-    unsigned int blocks_y = sizeOfAreaForOneProcess; // кол-во блоков 
+    //РІС‹С‡РёСЃР»РµРЅРёРµ СЂР°Р·РјРµСЂРѕРІ СЃРµС‚РєРё Рё РєРѕР»-РІРѕ РїРѕС‚РѕРєРѕРІ 
+    unsigned int threads_x = (N < 1024) ? N : 1024;// РєРѕР»-РІРѕ РїРѕС‚РѕРєРѕРІ, РІРёРґРµРѕРєР°СЂС‚Р° Р±РѕР»СЊС€Рµ 1024 РЅРµ РїРѕР·РІРѕР»СЏРµС‚ (СЃРІ-РІРѕ РІРёРґРµРѕРєР°СЂС‚С‹) 
+    unsigned int blocks_y = sizeOfAreaForOneProcess; // РєРѕР»-РІРѕ Р±Р»РѕРєРѕРІ 
     unsigned int blocks_x = N / threads_x;
 
-    dim3 blockDim1(threads_x, 1); // размеры одного блока в потоках
-    dim3 gridDim1(blocks_x, blocks_y); //размер сетки в блоках
+    dim3 blockDim1(threads_x, 1); // СЂР°Р·РјРµСЂС‹ РѕРґРЅРѕРіРѕ Р±Р»РѕРєР° РІ РїРѕС‚РѕРєР°С…
+    dim3 gridDim1(blocks_x, blocks_y); //СЂР°Р·РјРµСЂ СЃРµС‚РєРё РІ Р±Р»РѕРєР°С…
 
-    cudaStream_t stream, matrixCalculationStream; //создаю поток
+    cudaStream_t stream, matrixCalculationStream; //РёРЅРёС†РёР°Р»РёР·РёСЂСѓСЋ РїРѕС‚РѕРє
     cudaStreamCreate(&stream);
     cudaStreamCreate(&matrixCalculationStream);
 
-    clock_t begin = clock(); //начало отсчёта времени
+    clock_t begin = clock(); //РЅР°С‡Р°Р»Рѕ РѕС‚СЃС‡С‘С‚Р° РІСЂРµРјРµРЅРё
 
 
     while (iter < ITER && (*error) > ACC) {
         iter += 1;
 
-        // Расчитываем границы, которые потом будем отправлять другим процессам
-        calculateBoundaries <<<N, 1, 0, stream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
+        // Р Р°СЃС‡РёС‚С‹РІР°РµРј РіСЂР°РЅРёС†С‹, РєРѕС‚РѕСЂС‹Рµ РїРѕС‚РѕРј Р±СѓРґРµРј РѕС‚РїСЂР°РІР»СЏС‚СЊ РґСЂСѓРіРёРј РїСЂРѕС†РµСЃСЃР°Рј
+        calculateBoundaries << <N, 1, 0, stream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
-        cudaStreamSynchronize(stream);
+        cudaStreamSynchronize(stream);//Р¶РґС‘С‚ Р·Р°РІРµСЂС€РµРЅРёСЏ РІСЃРµС… РѕРїРµСЂР°С†РёР№ РІ РїРѕС‚РѕРєРµ
 
-        // Расчет матрицы
-        calculationMatrix<<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
+        // Р Р°СЃС‡РµС‚ РјР°С‚СЂРёС†С‹
+        calculationMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
-        if (iter% 100 == 0) {
-            getErrorMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, errorMatrix,
+        if (iter % 100 == 0) {
+            getErrorMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, errorMatrix,
                 N, sizeOfAreaForOneProcess);
 
-            cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, sizeOfAllocatedMemory, matrixCalculationStream);
+            cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, sizeOfAllocatedMemory, matrixCalculationStream); //РЅР°С…РѕРґРёРј РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ С‡РёСЃР»Рѕ
 
-            // Находим максимальную ошибку среди всех и передаём её всем процессам
-            MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
+            // РќР°С…РѕРґРёРј РјР°РєСЃРёРјР°Р»СЊРЅСѓСЋ РѕС€РёР±РєСѓ СЃСЂРµРґРё РІСЃРµС… Рё РїРµСЂРµРґР°С‘Рј РµС‘ РІСЃРµРј РїСЂРѕС†РµСЃСЃР°Рј
+            MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//РїРѕ РІСЃРµРј РїСЂРѕС†РµСЃСЃР°Рј РїРµСЂРµРґР°С‘С‚СЃСЏ Р·Р°РЅС‡ РѕС€РёР±РєРё
             cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);
         }
 
 
-        if (rank != 0) //верхние границы не с кем обменивать :(
+        if (rank != 0) //РІРµСЂС…РЅРёРµ РіСЂР°РЅРёС†С‹ РЅРµ СЃ РєРµРј РѕР±РјРµРЅРёРІР°С‚СЊ :(
         {
-            	MPI_Sendrecv(d_anew+ N + 1, N - 2, MPI_DOUBLE, rank - 1, 0,
-                d_anew+ 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0,
+                d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
 
-        // Обмен с нижней границей
+        // РћР±РјРµРЅ СЃ РЅРёР¶РЅРµР№ РіСЂР°РЅРёС†РµР№
         if (rank != sizeOfTheGroup - 1)
         {
-           	MPI_Sendrecv(d_anew+ (sizeOfAreaForOneProcess - 2) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, d_anew+ (sizeOfAreaForOneProcess - 1) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(d_anew + (sizeOfAreaForOneProcess - 2) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, d_anew + (sizeOfAreaForOneProcess - 1) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
         cudaStreamSynchronize(matrixCalculationStream);
 
-        //обмен указателям
+        //РѕР±РјРµРЅ СѓРєР°Р·Р°С‚РµР»СЏРј
         double* c = d_mas;
-        d_mas= d_anew;
+        d_mas = d_anew;
         d_anew = c;
-
-
     }
     clock_t end = clock();
-    if (rank == 0) //печатаем 1 раз
+    if (rank == 0) //РїРµС‡Р°С‚Р°РµРј 1 СЂР°Р·
     {
         std::cout << "Time: " << 1.0 * (end - begin) / CLOCKS_PER_SEC << std::endl;
         std::cout << "Iter: " << iter << " Error: " << *error << std::endl;
     }
-
+	//РѕС‡РёС‰Р°РµРј РїР°РјСЏС‚СЊ
     cudaFree(d_mas);
     cudaFree(d_anew);
     cudaFree(tempStorage);
@@ -246,7 +239,7 @@ int main(int argc, char** argv) {
     cudaFree(errorMatrix);
     cudaStreamDestroy(stream);
 
-    //Функция закрывает все MPI-процессы и ликвидирует все области связи
+    //Р¤СѓРЅРєС†РёСЏ Р·Р°РєСЂС‹РІР°РµС‚ РІСЃРµ MPI-РїСЂРѕС†РµСЃСЃС‹ Рё Р»РёРєРІРёРґРёСЂСѓРµС‚ РІСЃРµ РѕР±Р»Р°СЃС‚Рё СЃРІСЏР·Рё
     MPI_Finalize();
     return 0;
 }
