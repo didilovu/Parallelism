@@ -35,6 +35,8 @@ __global__ void calculationMatrix(double* anew, const double* mas, size_t n, siz
         anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]);//среднее значение
     }
 }
+
+
 // Функция, подсчитывающая разницу матриц
 __global__ void getErrorMatrix(double* mas, double* anew, double* outmas, size_t n, size_t sizePerGpu)
 {
@@ -49,9 +51,20 @@ __global__ void getErrorMatrix(double* mas, double* anew, double* outmas, size_t
     }
 }
 
-int main(int argc, char** argv) {
+void printMatrix(double *arrPrint, int n) {//для вывода сеток
+    for (size_t i = 0; i < n; i++)
+    {
+        for (size_t j = 0; j < n; j++)
+        {
+            std::cout << arrPrint[i * n + j] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
 
-    double* mas, * anew, * d_mas, * d_anew, * deviceError, * errorMatrix, * tempStorage = NULL;
+int main(int argc, char* argv[]) {
+
+    double* mas, *anew, * d_mas, * d_anew, * deviceError, * errorMatrix, * tempStorage = NULL;
     int rank, sizeOfTheGroup; //номер текущего процесса, кол-во всех возможных процессов
 
     MPI_Init(&argc, &argv); //кол-во процессов и 
@@ -98,7 +111,7 @@ int main(int argc, char** argv) {
 
     // выделение памяти на хосте 
     cudaMallocHost(&mas, sizeof(double) * totalSize);
-    cudaMallocHost(&anew, sizeof(double) * totalSize); почему не маллок
+    cudaMallocHost(&anew, sizeof(double) * totalSize);
 
     std::memset(mas, 0, N * N * sizeof(double));//нулями заполняем
 
@@ -128,7 +141,7 @@ int main(int argc, char** argv) {
       // Расчитываем, сколько памяти требуется процессу
     if (rank != 0 && rank != sizeOfTheGroup - 1)
     {
-        sizeOfAreaForOneProcess += 2; // 2 границы 
+        sizeOfAreaForOneProcess += 2; // 2 еденицы памяти на добавление границ
     }
     else
     {
@@ -165,12 +178,11 @@ int main(int argc, char** argv) {
 
     //вычисление размеров сетки и кол-во потоков 
     unsigned int threads_x = (N < 1024) ? N : 1024;// кол-во потоков, видеокарта больше 1024 не позволяет (св-во видеокарты) 
-	почему не 77/16
     unsigned int blocks_y = sizeOfAreaForOneProcess; // кол-во блоков 
     unsigned int blocks_x = N / threads_x;
 
-    dim3 blockDim(threads_x, 1); // колво потоков
-    dim3 gridDim(blocks_x, blocks_y); //колво блоков в сетке
+    dim3 blockDim(threads_x, 1); // размеры одного блока в потоках
+    dim3 gridDim(blocks_x, blocks_y); //размер сетки в блоках
 
     cudaStream_t stream, matrixCalculationStream; //инициализирую поток
     cudaStreamCreate(&stream);
@@ -183,10 +195,10 @@ int main(int argc, char** argv) {
         iter += 1;
 
         // Расчитываем границы, которые потом будем отправлять другим процессам
-        calculateBoundaries <<<N, 1, 0, stream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess); //кол-во блоков и потоков
+        calculateBoundaries <<<N, 1, 0, stream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
         cudaStreamSynchronize(stream);//ждёт завершения всех операций в потоке
-почему нельзя поменять !i
+
         // Расчет матрицы
         calculationMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
@@ -195,8 +207,8 @@ int main(int argc, char** argv) {
             cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, sizeOfAllocatedMemory, matrixCalculationStream); //находим максимальное число
 
             MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
-            cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);//память с девайса на хост ассинхронно
-	    std::cout<<error<<std::endl;
+            cudaMemcpyAsync(&error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);//память на каждый процесс
+	    std::cout<<*error<<std::endl;
         }
 
 
@@ -204,8 +216,6 @@ int main(int argc, char** argv) {
         {
 		//отправить и получить запрос  
             MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0, d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		почему не отдельно + массив на 4 процессах
-		//адрес отправки, колво эл-в отправки, тип, процесс, тег, адрес получения, колво эл-в получения, тип, процесс, тог, коммуникатор, объеект состо-я
         }
 
         // Обмен с нижней границей
@@ -227,6 +237,7 @@ int main(int argc, char** argv) {
         std::cout << "Time: " << 1.0 * (end - begin) / CLOCKS_PER_SEC << std::endl;
         std::cout << "Iter: " << iter << " Error: " << *error << std::endl;
     }
+
 	//очищаем память
     cudaFree(d_mas);
     cudaFree(d_anew);
@@ -237,7 +248,7 @@ int main(int argc, char** argv) {
     cudaStreamDestroy(stream);
 
     //Функция закрывает все MPI-процессы и ликвидирует все области связи
-    MPI_Finalize();
+    MPI_Finalize();   
+    printMatrix(anew, N);
     return 0;
 }
-
