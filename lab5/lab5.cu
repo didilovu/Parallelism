@@ -16,8 +16,6 @@ __global__ void calculateBoundaries(double* mas, double* anew, size_t n, size_t 
     unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (j == 0 || j > n - 2) return;    //
-
     if (j < n)
     {
         anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]);
@@ -37,8 +35,6 @@ __global__ void calculationMatrix(double* anew, const double* mas, size_t n, siz
         anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]);//среднее значение
     }
 }
-
-
 // Функция, подсчитывающая разницу матриц
 __global__ void getErrorMatrix(double* mas, double* anew, double* outmas, size_t n, size_t sizePerGpu)
 {
@@ -52,6 +48,7 @@ __global__ void getErrorMatrix(double* mas, double* anew, double* outmas, size_t
         outmas[idx] = std::abs(anew[idx] - mas[idx]);
     }
 }
+
 int main(int argc, char** argv) {
 
     double* mas, * anew, * d_mas, * d_anew, * deviceError, * errorMatrix, * tempStorage = NULL;
@@ -131,7 +128,7 @@ int main(int argc, char** argv) {
       // Расчитываем, сколько памяти требуется процессу
     if (rank != 0 && rank != sizeOfTheGroup - 1)
     {
-        sizeOfAreaForOneProcess += 2; // 2 еденицы памяти на добавление границ
+        sizeOfAreaForOneProcess += 2; // 2 границы 
     }
     else
     {
@@ -171,8 +168,8 @@ int main(int argc, char** argv) {
     unsigned int blocks_y = sizeOfAreaForOneProcess; // кол-во блоков 
     unsigned int blocks_x = N / threads_x;
 
-    dim3 blockDim1(threads_x, 1); // размеры одного блока в потоках
-    dim3 gridDim1(blocks_x, blocks_y); //размер сетки в блоках
+    dim3 blockDim(threads_x, 1); // колво потоков
+    dim3 gridDim(blocks_x, blocks_y); //колво блоков в сетке
 
     cudaStream_t stream, matrixCalculationStream; //инициализирую поток
     cudaStreamCreate(&stream);
@@ -185,15 +182,15 @@ int main(int argc, char** argv) {
         iter += 1;
 
         // Расчитываем границы, которые потом будем отправлять другим процессам
-        calculateBoundaries << <N, 1, 0, stream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess);
+        calculateBoundaries <<<N, 1, 0, stream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess); //кол-во блоков и потоков
 
         cudaStreamSynchronize(stream);//ждёт завершения всех операций в потоке
 
         // Расчет матрицы
-        calculationMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, N, sizeOfAreaForOneProcess);
+        calculationMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
         if (iter % 100 == 0) {
-            getErrorMatrix << <gridDim, blockDim, 0, matrixCalculationStream >> > (d_mas, d_anew, errorMatrix, N, sizeOfAreaForOneProcess); //операция вычисления разницы матриц
+            getErrorMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, errorMatrix, N, sizeOfAreaForOneProcess); //операция вычисления разницы матриц
             cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, sizeOfAllocatedMemory, matrixCalculationStream); //находим максимальное число
 
             MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
@@ -206,6 +203,7 @@ int main(int argc, char** argv) {
         {
 		//отправить и получить запрос  
             MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0, d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		//адрес отправки, колво эл-в отправки, тип, процесс, тег, адрес получения, колво эл-в получения, тип, процесс, тог, коммуникатор, объеект состо-я
         }
 
         // Обмен с нижней границей
