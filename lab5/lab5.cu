@@ -10,45 +10,95 @@
 
 #include <mpi.h> 
 
-//расчёт пограничных значений матрицы на месте "среза"
-__global__ void calculateBoundaries(double* mas, double* anew, size_t n, size_t sizePerGpu)
-{
-    unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+void print(int size, int rank, double* matrixA, int sizeOfAreaForOneProcess){
+		if (rank == 0){
+		printf("start rank 0\n");
+		for (int i = 0; i < sizeOfAreaForOneProcess; i++){
+			for (int j = 0; j < size; j++){
+				printf("%0.4lf ", matrixA[i * size + j]);
+			}
+			printf("\n");
+		}
+		printf("end rank 0\n");
+	}
+	if (rank == 1){
+		printf("start rank 1\n");
+		for (int i = 0; i < sizeOfAreaForOneProcess; i++){
+			for (int j = 0; j < size; j++){
+				printf("%0.4lf ", matrixA[i * size + j]);
+			}
+			printf("\n");
+		}
+		printf("end rank 1\n");
+	}
+	if (rank == 2){
+		printf("start rank 2\n");
+		for (int i = 0; i < sizeOfAreaForOneProcess; i++){
+			for (int j = 0; j < size; j++){
+				printf("%0.4lf ", matrixA[i * size + j]);
+			}
+			printf("\n");
+		}
+		printf("end rank 2\n");
+	}
 
-    if (j < n)
-    {
-        anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]);
-        anew[(sizePerGpu - 2) * n + i] = 0.25 * (mas[(sizePerGpu - 2) * n + i - 1] + mas[((sizePerGpu - 2) - 1) * n + i] + mas[((sizePerGpu - 2) + 1) * n + i] + mas[(sizePerGpu - 2) * n + i + 1]);
-    }
+	if (rank == 3){
+		printf("start rank 3\n");
+		for (int i = 0; i < sizeOfAreaForOneProcess; i++){
+			for (int j = 0; j < size; j++){
+				printf("%0.4lf ", matrixA[i * size + j]);
+			}
+			printf("\n");
+		}
+		printf("end rank 3\n");
+	}
+
 }
-
 
 //расчёт внутренних значений матрицы 
-__global__ void calculationMatrix(double* anew, const double* mas, size_t n, size_t groupSize)
-{
-    unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
+#define CALCULATE(matrixA, matrixB, size, i, j) \
+	matrixB[i * size + j] = 0.25 * (matrixA[i * size + j - 1] + matrixA[(i - 1) * size + j] + \
+			matrixA[(i + 1) * size + j] + matrixA[i * size + j + 1]);	
 
-    if (i > 0 && i < groupSize - 1 && j > 0 && j < n - 1) //промежуток подсчета исключая границы
-    {
-        anew[i * n + j] = 0.25 * (mas[i * n + j - 1] + mas[(i - 1) * n + j] + mas[(i + 1) * n + j] + mas[i * n + j + 1]);//среднее значение
-    }
+__global__
+void calculateBoundaries(double* matrixA, double* matrixB, size_t size, size_t sizePerGpu)
+{
+	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (idx == 0 || idx > size - 2) return;
+	
+	if(idx < size)
+	{
+		CALCULATE(matrixA, matrixB, size, 1, idx);
+		CALCULATE(matrixA, matrixB, size, (sizePerGpu - 2), idx);
+	}
 }
 
-
-// Функция, подсчитывающая разницу матриц
-__global__ void getErrorMatrix(double* mas, double* anew, double* outmas, size_t n, size_t sizePerGpu)
+// Р“Р»Р°РІРЅР°СЏ С„СѓРЅРєС†РёСЏ - СЂР°СЃС‡С‘С‚ РїРѕР»СЏ 
+__global__
+void calculationMatrix(double* matrixA, double* matrixB, size_t size, size_t sizePerGpu)
 {
-    unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
+	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	if((i < sizePerGpu - 2) && (i > 1) && (j > 0) && (j < size - 1))
+	{
+		CALCULATE(matrixA, matrixB, size, i, j);
+	}
+}
+
+// Р¤СѓРЅРєС†РёСЏ, РїРѕРґСЃС‡РёС‚С‹РІР°СЋС‰Р°СЏ СЂР°Р·РЅРёС†Сѓ РјР°С‚СЂРёС†
+__global__
+void getErrorMatrix(double* matrixA, double* matrixB, double* outputMatrix, size_t size, size_t sizePerGpu)
+{
+	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
 
-    size_t idx = i * n + j;
-
-    if (!(j == 0 || i == 0 || j == n - 1 || i == sizePerGpu - 1))
-    {
-        outmas[idx] = std::abs(anew[idx] - mas[idx]);
-    }
+	size_t idx = i * size + j;
+	if(!(j == 0 || i == 0 || j == size - 1 || i == sizePerGpu - 1))
+	{
+		outputMatrix[idx] = std::abs(matrixB[idx] - matrixA[idx]);
+	}
 }
 
 void printMatrix(double *arrPrint, int n) {//для вывода сеток
@@ -70,7 +120,7 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv); //кол-во процессов и 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); //инициализация
     MPI_Comm_size(MPI_COMM_WORLD, &sizeOfTheGroup); 
-
+ cudaSetDevice(rank);//устанавливает
     int numOfDevices = 0;
     cudaGetDeviceCount(&numOfDevices);
     if (sizeOfTheGroup > numOfDevices || sizeOfTheGroup < 1)
@@ -79,7 +129,7 @@ int main(int argc, char* argv[]) {
         std::exit(-1);
     }
 
-    cudaSetDevice(rank);//устанавливает
+   
 
     int N = atoi(argv[1]); //параметр, размер сетки SIZE
     int ITER = std::atoi(argv[2]); //параметр, макс количество итераций iter max
@@ -104,10 +154,46 @@ int main(int argc, char* argv[]) {
     }
 
     //часть SIZE для каждого процесса
-    size_t sizeOfAreaForOneProcess = N / sizeOfTheGroup;
+size_t sizeOfAreaForOneProcess; 
+	size_t startYIdx;
 
-    //начало части 
-    size_t startYIdx = sizeOfAreaForOneProcess * rank;
+	if (N % sizeOfTheGroup == 0) {
+		sizeOfAreaForOneProcess = N / sizeOfTheGroup;
+
+	}
+	else {
+		if (sizeOfTheGroup == 2) {
+			if (N % 2 != 0){
+				sizeOfAreaForOneProcess = std::ceil(N / (sizeOfTheGroup)) + 1;
+
+				if (rank == (sizeOfTheGroup - 1)) sizeOfAreaForOneProcess = (N / (sizeOfTheGroup));
+				}
+			else {
+				sizeOfAreaForOneProcess = N / (sizeOfTheGroup);
+			}
+		}
+		if (sizeOfTheGroup == 4) {
+			sizeOfAreaForOneProcess = N / (sizeOfTheGroup - 1);
+
+			if (rank == (sizeOfTheGroup - 1)) sizeOfAreaForOneProcess = N % (sizeOfTheGroup - 1);
+		}
+	}
+
+	
+	if (sizeOfTheGroup == 2){ 
+		if (N % 2 == 0){
+			startYIdx = (N / sizeOfTheGroup) * rank;
+		}
+		else {
+		startYIdx = (N / sizeOfTheGroup) * rank;
+		if (rank == 1) startYIdx++;
+		}
+	}
+	if (sizeOfTheGroup == 4) {	
+		if (N % sizeOfTheGroup == 0) startYIdx = (N / (sizeOfTheGroup)) * rank;
+		else {startYIdx = (N / (sizeOfTheGroup - 1)) * rank;}
+		}
+	if (sizeOfTheGroup == 1) {startYIdx = 0;}
 
     // выделение памяти на хосте 
     cudaMallocHost(&mas, sizeof(double) * totalSize);
@@ -139,14 +225,16 @@ int main(int argc, char* argv[]) {
     std::memcpy(anew, mas, totalSize * sizeof(double));//копирует содержимое одной области памяти в другую
 
       // Расчитываем, сколько памяти требуется процессу
-    if (rank != 0 && rank != sizeOfTheGroup - 1)
-    {
-        sizeOfAreaForOneProcess += 2; // 2 еденицы памяти на добавление границ
-    }
-    else
-    {
-        sizeOfAreaForOneProcess += 1; //otherwise
-    }
+    if(sizeOfTheGroup == 1) sizeOfAreaForOneProcess = sizeOfAreaForOneProcess;
+
+	else {
+		if (rank != 0 && rank != sizeOfTheGroup - 1) {
+		sizeOfAreaForOneProcess += 2;
+		}
+		else {
+		sizeOfAreaForOneProcess += 1;
+		}
+	}
 
     size_t sizeOfAllocatedMemory = N * sizeOfAreaForOneProcess;
 
@@ -195,35 +283,41 @@ int main(int argc, char* argv[]) {
         iter += 1;
 
         // Расчитываем границы, которые потом будем отправлять другим процессам
-        calculateBoundaries <<<N, 1, 0, stream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
+	if(sizeOfAreaForOneProcess > 2){
+        	calculateBoundaries <<<N, 1, 0, stream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
 
         cudaStreamSynchronize(stream);//ждёт завершения всех операций в потоке
 
         // Расчет матрицы
         calculationMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, N, sizeOfAreaForOneProcess);
-
+}
         if (iter % 100 == 0) {
             getErrorMatrix <<<gridDim, blockDim, 0, matrixCalculationStream >>> (d_mas, d_anew, errorMatrix, N, sizeOfAreaForOneProcess); //операция вычисления разницы матриц
             cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, sizeOfAllocatedMemory, matrixCalculationStream); //находим максимальное число
-
+cudaStreamSynchronize(matrixCalculationStream);
             MPI_Allreduce((void*)deviceError, (void*)deviceError, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);//по всем процессам передаётся занч ошибки
-            cudaMemcpyAsync(&error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, matrixCalculationStream);//память на каждый процесс
-	    std::cout<<*error<<std::endl;
+            cudaMemcpy(&error, deviceError, sizeof(double), cudaMemcpyDeviceToHost);//память на каждый процесс
+	   // std::cout<<*error<<std::endl;
         }
 
 
-        if (rank != 0) //верхние границы не с кем обменивать :(
-        {
-		//отправить и получить запрос  
-            MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0, d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
+        if(sizeOfTheGroup > 1){ 
+			// РћР±РјРµРЅ "РіСЂР°РЅРёС‡РЅС‹РјРё" СѓСЃР»РѕРІРёСЏРјРё РєР°Р¶РґРѕР№ РѕР±Р»Р°СЃС‚Рё
+			// РћР±РјРµРЅ РІРµСЂС…РЅРµР№ РіСЂР°РЅРёС†РµР№
+			if (rank != 0)
+			{
+				MPI_Sendrecv(d_anew + N + 1, N - 2, MPI_DOUBLE, rank - 1, 0, 
+				d_anew + 1, N - 2, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+			// РћР±РјРµРЅ РЅРёР¶РЅРµР№ РіСЂР°РЅРёС†РµР№
+			if (rank != sizeOfTheGroup - 1)
+			{
+				MPI_Sendrecv(d_anew + (sizeOfAreaForOneProcess - 2) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0,
+								d_anew + (sizeOfAreaForOneProcess - 1) * N + 1, 
+								N - 2, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+		}
 
-        // Обмен с нижней границей
-        if (rank != sizeOfTheGroup - 1)
-        {
-		//операция передачи и приёма
-            MPI_Sendrecv(d_anew + (sizeOfAreaForOneProcess - 2) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, d_anew + (sizeOfAreaForOneProcess - 1) * N + 1, N - 2, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
         cudaStreamSynchronize(matrixCalculationStream);//ждёт завершения всех операций в потоке
 
         //обмен указателям
@@ -238,6 +332,8 @@ int main(int argc, char* argv[]) {
         std::cout << "Iter: " << iter << " Error: " << *error << std::endl;
     }
 
+print(N, rank, mas, sizeOfAreaForOneProcess);
+
 	//очищаем память
     cudaFree(d_mas);
     cudaFree(d_anew);
@@ -249,6 +345,5 @@ int main(int argc, char* argv[]) {
 
     //Функция закрывает все MPI-процессы и ликвидирует все области связи
     MPI_Finalize();   
-    printMatrix(anew, N);
     return 0;
 }
